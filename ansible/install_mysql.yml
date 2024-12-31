@@ -1,0 +1,45 @@
+- name: Install and configure MySQL
+  hosts: dbservers
+  become: true
+  tasks:
+    - name: Install MySQL server
+      apt:
+        name: mysql-server
+        state: present
+        update_cache: yes
+
+    - name: Ensure MySQL is running
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Configure MySQL root user to allow passwordless login
+      mysql_user:
+        name: root
+        password: ""
+        host: localhost
+        state: present
+        login_user: root
+        login_password: "root_password"
+        login_host: localhost
+        # Disable auth_socket and use no password
+        plugin: mysql_native_password
+
+    - name: Create database exam_seat_db
+      mysql_db:
+        name: exam_seat_db
+        state: present
+        login_user: root
+        login_password: "root_password"
+        login_host: localhost
+
+    - name: Create database user exam_user
+      mysql_user:
+        name: exam_user
+        password: exam_password
+        priv: "exam_seat_db.*:ALL"
+        state: present
+        login_user: root
+        login_password: "root_password"
+        login_host: localhost

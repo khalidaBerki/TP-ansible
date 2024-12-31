@@ -1,0 +1,89 @@
+- name: Configure and deploy Exam Seat Arrangement System
+  hosts: webservers
+  become: yes
+  vars:
+    mysql_root_password: "root_password"  # Remplacez par un mot de passe sécurisé
+    database_name: "exam_seat_db"
+    database_user: "exam_user"
+    database_password: "exam_password"  # Remplacez par un mot de passe sécurisé
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - apache2
+          - php
+          - libapache2-mod-php
+          - php-mysql
+          - git
+          - mysql-server
+        state: present
+
+    - name: Clone the application repository
+      git:
+        repo: https://github.com/udaykarmakar/ExamSeatArrangementSystem.git
+        dest: /var/www/html/exam_seat
+        version: master  
+        force: yes
+
+    - name: Set permissions on application directory
+      file:
+        path: /var/www/html/exam_seat
+        owner: www-data
+        group: www-data
+        mode: '0755'
+        recurse: yes
+
+    - name: Restart Apache to apply changes
+      service:
+        name: apache2
+        state: restarted
+
+- name: Configure MySQL
+  hosts: dbservers
+  become: yes
+  vars:
+    mysql_root_password: "root_password"  # Remplacez par un mot de passe sécurisé
+    database_name: "exam_seat_db"
+    database_user: "exam_user"
+    database_password: "exam_password"  # Remplacez par un mot de passe sécurisé
+
+  tasks:
+    - name: Ensure MySQL is running
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+    - name: Configure MySQL root user to allow password authentication
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"  # Utilisation du mot de passe root_password
+        host: localhost
+        state: present
+        login_user: root
+        login_password: ""  # Aucun mot de passe pour la connexion initiale
+        login_host: localhost
+        plugin: mysql_native_password
+
+    - name: Create application database
+      mysql_db:
+        name: "{{ database_name }}"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"  # Utilisation du mot de passe root_password
+        login_host: localhost
+
+    - name: Create application user
+      mysql_user:
+        name: "{{ database_user }}"
+        password: "{{ database_password }}"
+        priv: "{{ database_name }}.*:ALL"
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"  # Utilisation du mot de passe root_password
+        login_host: localhost

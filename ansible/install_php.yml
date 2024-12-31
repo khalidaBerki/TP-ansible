@@ -1,0 +1,25 @@
+- name: Install PHP and required modules
+  hosts: localhost
+  become: true
+  vars:
+    php_version: "8.1"  # Updated to 8.1 to match your installed version
+  tasks:
+    - name: Install PHP and required modules
+      apt:
+        name:
+          - "php{{ php_version }}"
+          - "php{{ php_version }}-mysql"
+          - "libapache2-mod-php{{ php_version }}"
+        state: present
+        update_cache: yes
+
+    - name: Ensure php.ini configuration is set
+      lineinfile:
+        path: "/etc/php/{{ php_version }}/apache2/php.ini"
+        regexp: '^max_execution_time'
+        line: 'max_execution_time = 300'
+
+    - name: Restart Apache to apply PHP changes
+      service:
+        name: apache2
+        state: restarted
