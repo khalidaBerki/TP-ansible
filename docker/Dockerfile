@@ -1,42 +1,33 @@
-FROM ubuntu:latest
+FROM ubuntu:20.04
 
-ARG USERNAME
-ARG PASSWORD
+# Mise à jour des packages et installation des dépendances nécessaires
+RUN apt-get update && apt-get install -y \
+    apache2 \
+    php \
+    php-mysqli \
+    php-gd \
+    mysql-client \
+    curl \
+    unzip \
+    && apt-get clean
 
-# Install the necessary packages for openssh-server
-RUN apt-get update -y && apt-get install -y openssh-server sudo
+# Copier le fichier de configuration Apache (vhost.conf)
+COPY ansible/vhost.conf.j2 /etc/apache2/sites-available/000-default.conf
 
-# Create the necessary directories for sshd
-RUN mkdir /var/run/sshd
+# Activer le module rewrite d'Apache
+RUN a2enmod rewrite
 
-# Disable password authentication
-RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-# Activate key authentication
-RUN sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+# Copie de tous les fichiers du projet dans le conteneur
+COPY . /var/www/html/
 
-# Generate host keys
-RUN ssh-keygen -A
+# Installer Composer (gestionnaire de dépendances PHP)
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Create a new user
-RUN useradd -ms /bin/bash $USERNAME
+# Définir le répertoire de travail
+WORKDIR /var/www/html
 
-# Set the password for the new user
-RUN echo "$USERNAME:$PASSWORD" | chpasswd
+# Exposer le port 80 pour accéder à l'application via HTTP
+EXPOSE 80
 
-# Allow the new user to run sudo commands
-RUN usermod -aG sudo $USERNAME
-
-# Allow the new user to run sudo commands without a password
-RUN echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
-# Set the default shell for the new user
-RUN chsh -s /bin/bash $USERNAME
-
-EXPOSE 22
-
-COPY ./entrypoint.sh /entrypoint.sh
-
-ENTRYPOINT ["/entrypoint.sh"]
-
-# Start the sshd service
-CMD ["bash"]
+# Lancer Apache en mode foreground
+CMD ["apache2ctl", "-D", "FOREGROUND"]
